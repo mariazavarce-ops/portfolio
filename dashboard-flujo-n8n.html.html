@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SoporteOS — Dashboard + Flujo n8n</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:       #0a0c10;
+  --s1:       #111318;
+  --s2:       #181c24;
+  --s3:       #1f2430;
+  --b:        rgba(255,255,255,0.07);
+  --b2:       rgba(255,255,255,0.12);
+  --txt:      #dde2ec;
+  --muted:    #5a6278;
+  --purple:   #7c6fef;
+  --purple-l: rgba(124,111,239,.18);
+  --teal:     #29d4a0;
+  --teal-l:   rgba(41,212,160,.14);
+  --amber:    #f5a623;
+  --amber-l:  rgba(245,166,35,.14);
+  --red:      #f06060;
+  --red-l:    rgba(240,96,96,.13);
+  --blue:     #4fa3f7;
+  --blue-l:   rgba(79,163,247,.13);
+  --coral:    #f07060;
+  --r:        10px;
+  --r2:       14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Syne',sans-serif;background:var(--bg);color:var(--txt);font-size:14px;overflow:hidden}
+/* ─ Shell ─ */
+.shell{display:grid;grid-template-columns:200px 1fr;grid-template-rows:52px 1fr;height:100vh}
+/* ─ Topbar ─ */
+.topbar{grid-column:1/-1;background:var(--s1);border-bottom:1px solid var(--b);display:flex;align-items:center;padding:0 20px;gap:16px}
+.logo{font-size:15px;font-weight:700;letter-spacing:-0.4px;color:var(--txt);display:flex;align-items:center;gap:8px}
+.logo-mark{width:26px;height:26px;background:var(--purple);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.live-pill{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:var(--teal-l);border:1px solid rgba(41,212,160,.3);font-size:11px;color:var(--teal);font-weight:600}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.topbar-btn{padding:6px 14px;border-radius:var(--r);border:1px solid var(--b2);background:transparent;color:var(--muted);font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;font-weight:500}
+.topbar-btn:hover{color:var(--txt);border-color:rgba(255,255,255,.2)}
+.topbar-btn.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+/* ─ Sidebar ─ */
+.sidebar{background:var(--s1);border-right:1px solid var(--b);padding:16px 12px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-section{font-size:10px;font-weight:600;letter-spacing:.07em;color:var(--muted);padding:12px 8px 4px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r);cursor:pointer;color:var(--muted);font-size:12px;font-weight:500;border:none;background:none;width:100%;text-align:left;font-family:inherit;transition:all .15s}
+.nav-item:hover{background:var(--s2);color:var(--txt)}
+.nav-item.active{background:var(--purple-l);color:var(--purple)}
+.nav-icon{font-size:15px;flex-shrink:0;width:18px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--red-l);color:var(--red);border-radius:20px;padding:1px 7px;font-size:10px;font-weight:600}
+/* ─ Main ─ */
+.main{overflow-y:auto;padding:20px 24px}
+.section{display:none}.section.active{display:block}
+/* ─ Metric strip ─ */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.mc{background:var(--s1);border:1px solid var(--b);border-radius:var(--r2);padding:14px 16px;position:relative;overflow:hidden;animation:fadeUp .4s ease both}
+.mc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 var(--r2) var(--r2)}
+.mc.p::after{background:var(--purple)}.mc.t::after{background:var(--teal)}.mc.a::after{background:var(--amber)}.mc.b::after{background:var(--blue)}
+.mc-label{font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.mc-val{font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:-1px}
+.mc-delta{font-size:11px;margin-top:4px;color:var(--muted)}
+.up{color:var(--teal)}.dn{color:var(--red)}
+/* ─ Cards ─ */
+.card{background:var(--s1);border:1px solid var(--b);border-radius:var(--r2);padding:16px 18px;margin-bottom:16px}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-size:13px;font-weight:600;color:var(--txt)}
+.card-sub{font-size:11px;color:var(--muted)}
+/* ─ Ticket table ─ */
+.tt{width:100%;border-collapse:collapse}
+.tt th{text-align:left;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:0 10px 8px;border-bottom:1px solid var(--b)}
+.tt td{padding:10px 10px;border-bottom:1px solid var(--b);font-size:12px;vertical-align:middle}
+.tt tr:last-child td{border:none}
+.tt tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.bo{background:var(--blue-l);color:var(--blue)}.bp{background:var(--amber-l);color:var(--amber)}.bc{background:var(--teal-l);color:var(--teal)}.bu{background:var(--red-l);color:var(--red)}
+.act-btn{padding:3px 9px;border-radius:var(--r);border:1px solid var(--b2);background:none;color:var(--muted);font-size:10px;cursor:pointer;font-family:inherit;transition:all .15s}
+.act-btn:hover{border-color:var(--purple);color:var(--purple)}
+.filters{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.fb{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;border:1px solid var(--b);background:none;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s}
+.fb:hover{border-color:var(--b2);color:var(--txt)}
+.fb.active{background:var(--purple-l);border-color:var(--purple);color:var(--purple)}
+/* ─ Two-col ─ */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+/* ─ Perf ─ */
+.pr{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--b)}
+.pr:last-child{border:none}
+.pa{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.pname{font-size:12px;font-weight:500;width:110px}
+.pbw{flex:1;height:5px;background:var(--s3);border-radius:3px;overflow:hidden}
+.pb{height:100%;border-radius:3px;transition:width .6s ease}
+.pv{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;width:60px;text-align:right}
+/* ─ Resp ─ */
+.ri{border:1px solid var(--b);border-radius:var(--r);margin-bottom:6px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.ri:hover{border-color:var(--b2)}
+.rh{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--s2)}
+.rt{font-size:12px;font-weight:600}
+.rb{display:none;padding:12px 14px;font-size:12px;line-height:1.7;color:var(--muted);border-top:1px solid var(--b)}
+.rb.open{display:block}
+.cpbtn{margin-top:8px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--b);background:none;color:var(--muted);font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s}
+.cpbtn:hover{border-color:var(--teal);color:var(--teal)}
+.rcat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:14px 0 6px}
+/* ─ Auto ─ */
+.ai{display:flex;align-items:flex-start;gap:12px;padding:12px;border:1px solid var(--b);border-radius:var(--r);margin-bottom:8px;transition:border-color .15s}
+.ai:hover{border-color:var(--b2)}
+.aico{width:34px;height:34px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.at{font-size:12px;font-weight:600;margin-bottom:2px}
+.ad{font-size:11px;color:var(--muted);line-height:1.5}
+.tog{width:34px;height:19px;border-radius:10px;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;margin-left:auto;margin-top:2px}
+.tog.on{background:var(--teal)}.tog.off{background:var(--s3);border:1px solid var(--b2)}
+.tog::after{content:'';position:absolute;width:13px;height:13px;border-radius:50%;background:#fff;top:3px;transition:left .2s}
+.tog.on::after{left:18px}.tog.off::after{left:3px}
+/* ─ FLUJO N8N ─ */
+#tab-flujo .flow-wrap{padding:8px 0}
+.flow-node{display:flex;align-items:stretch;margin-bottom:0}
+.flow-col{display:flex;flex-direction:column;align-items:center;width:36px;flex-shrink:0}
+.flow-line{flex:1;width:2px;background:var(--b2);margin:0 auto}
+.flow-dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--b2);background:var(--bg);flex-shrink:0;margin:6px 0}
+.flow-dot.active-dot{border-color:var(--purple);background:var(--purple)}
+.flow-dot.done-dot{border-color:var(--teal);background:var(--teal)}
+.flow-content{flex:1;padding:0 0 16px 6px}
+.flow-box{border:1px solid var(--b);border-radius:var(--r2);overflow:hidden;cursor:pointer;transition:border-color .2s}
+.flow-box:hover{border-color:var(--b2)}
+.flow-box.open{border-color:var(--purple)}
+.flow-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--s2)}
+.flow-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.flow-title{font-size:13px;font-weight:600;flex:1}
+.flow-tag{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;flex-shrink:0}
+.flow-body{display:none;padding:14px;border-top:1px solid var(--b);background:var(--s1)}
+.flow-body.open{display:block}
+/* prompt block */
+.prompt-block{background:var(--s3);border:1px solid var(--amber-l);border-radius:var(--r);padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.8;color:var(--txt);margin-top:8px}
+.prompt-line{display:flex;gap:8px;margin-bottom:2px}
+.pl-key{color:var(--amber);flex-shrink:0;min-width:72px}
+.pl-val{color:var(--muted)}
+.pl-val span{color:var(--teal)}
+.flow-detail{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px}
+.flow-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;border:1px solid var(--b2);color:var(--muted)}
+.chip.p{background:var(--purple-l);border-color:var(--purple);color:var(--purple)}
+.chip.t{background:var(--teal-l);border-color:var(--teal);color:var(--teal)}
+.chip.a{background:var(--amber-l);border-color:var(--amber);color:var(--amber)}
+/* decision fork */
+.fork{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.fork-box{border:1px solid var(--b);border-radius:var(--r);padding:10px 12px}
+.fork-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.fork-desc{font-size:11px;color:var(--muted);line-height:1.5}
+/* simulate btn */
+.sim-btn{width:100%;padding:9px;border-radius:var(--r);border:none;background:var(--purple);color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:12px;transition:background .15s}
+.sim-btn:hover{background:#6a5de0}
+/* simulate panel */
+.sim-panel{background:var(--s3);border:1px solid var(--b2);border-radius:var(--r2);padding:14px;margin-top:12px;display:none}
+.sim-panel.open{display:block}
+.sim-step{display:flex;align-items:flex-start;gap:10px;padding:6px 0;font-size:12px;color:var(--muted);opacity:0;transform:translateY(6px);transition:all .3s}
+.sim-step.show{opacity:1;transform:none}
+.sim-check{width:18px;height:18px;border-radius:50%;background:var(--teal-l);border:1px solid var(--teal);display:flex;align-items:center;justify-content:center;color:var(--teal);font-size:10px;flex-shrink:0;margin-top:1px}
+.sim-email{background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);padding:12px;margin-top:10px;font-size:12px;line-height:1.7;display:none}
+.sim-email.open{display:block}
+.sim-email-head{font-size:11px;color:var(--muted);margin-bottom:8px;border-bottom:1px solid var(--b);padding-bottom:6px}
+.sim-email-body{color:var(--txt)}
+/* animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.mc:nth-child(1){animation-delay:.05s}.mc:nth-child(2){animation-delay:.1s}.mc:nth-child(3){animation-delay:.15s}.mc:nth-child(4){animation-delay:.2s}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="logo"><div class="logo-mark">S</div> SoporteOS</div>
+  <div style="width:1px;height:24px;background:var(--b);margin:0 4px"></div>
+  <button class="topbar-btn active" onclick="switchTab('tickets',this)">Tickets</button>
+  <button class="topbar-btn" onclick="switchTab('flujo',this)">Flujo n8n</button>
+  <button class="topbar-btn" onclick="switchTab('respuestas',this)">Respuestas</button>
+  <button class="topbar-btn" onclick="switchTab('auto',this)">Automatizaciones</button>
+  <button class="topbar-btn" onclick="switchTab('rendimiento',this)">Rendimiento</button>
+  <div class="topbar-right">
+    <div class="live-pill"><div class="live-dot"></div> En vivo</div>
+    <button class="topbar-btn">↓ Exportar</button>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="nav-section">Cola</div>
+  <button class="nav-item active" onclick="switchTab('tickets',null,this)"><span class="nav-icon">🎫</span>Tickets<span class="nav-badge">3</span></button>
+  <button class="nav-item" onclick="switchTab('flujo',null,this)"><span class="nav-icon">⚡</span>Flujo n8n</button>
+  <div class="nav-section">Herramientas</div>
+  <button class="nav-item" onclick="switchTab('respuestas',null,this)"><span class="nav-icon">💬</span>Respuestas</button>
+  <button class="nav-item" onclick="switchTab('auto',null,this)"><span class="nav-icon">🤖</span>Automatiz.</button>
+  <button class="nav-item" onclick="switchTab('rendimiento',null,this)"><span class="nav-icon">📊</span>Rendimiento</button>
+  <div style="margin-top:auto;padding-top:12px;border-top:1px solid var(--b)">
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 8px">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--purple-l);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--purple);flex-shrink:0">TU</div>
+      <div><div style="font-size:12px;font-weight:600">Tu Nombre</div><div style="font-size:10px;color:var(--muted)">Agente senior</div></div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- MÉTRICAS siempre visibles -->
+  <div class="metrics" id="metrics-strip">
+    <div class="mc p"><div class="mc-label">Tickets abiertos</div><div class="mc-val">142</div><div class="mc-delta dn">↑ 12% esta semana</div></div>
+    <div class="mc t"><div class="mc-label">Resueltos hoy</div><div class="mc-val">38</div><div class="mc-delta up">↑ 8% vs ayer</div></div>
+    <div class="mc a"><div class="mc-label">Tiempo promedio</div><div class="mc-val">2.4h</div><div class="mc-delta up">↓ 0.3h mejora</div></div>
+    <div class="mc b"><div class="mc-label">Satisfacción</div><div class="mc-val">91%</div><div class="mc-delta up">↑ 3pts este mes</div></div>
+  </div>
+
+  <!-- ══ TAB: TICKETS ══ -->
+  <div class="section active" id="tab-tickets">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Cola de tickets activos</span><span class="card-sub" id="tcnt">8 tickets</span></div>
+      <div class="filters">
+        <button class="fb active" onclick="ft('todos',this)">Todos</button>
+        <button class="fb" onclick="ft('abierto',this)">Abiertos</button>
+        <button class="fb" onclick="ft('pendiente',this)">Pendientes</button>
+        <button class="fb" onclick="ft('urgente',this)">Urgentes</button>
+        <button class="fb" onclick="ft('cerrado',this)">Cerrados</button>
+      </div>
+      <table class="tt"><thead><tr><th>ID</th><th>Cliente</th><th>Asunto</th><th>Estado</th><th>Plan</th><th>Tiempo</th><th></th></tr></thead>
+      <tbody id="tbody"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ══ TAB: FLUJO N8N ══ -->
+  <div class="section" id="tab-flujo">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Flujo n8n — del cliente al cierre</span>
+        <span class="card-sub">Haz clic en cada paso para ver la configuración</span>
+      </div>
+      <div class="flow-wrap" id="flow-wrap"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: RESPUESTAS ══ -->
+  <div class="section" id="tab-respuestas">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Plantillas de respuesta rápida</span><span class="card-sub">Generadas por IA · clic para copiar</span></div>
+      <div id="resp-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: AUTOMATIZACIONES ══ -->
+  <div class="section" id="tab-auto">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Reglas automáticas activas</span></div>
+      <div id="auto-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: RENDIMIENTO ══ -->
+  <div class="section" id="tab-rendimiento">
+    <div class="two">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Equipo esta semana</span></div>
+        <div id="perf-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">Tendencia semanal</span></div>
+        <div style="position:relative;height:210px"><canvas id="trendChart" role="img" aria-label="Tendencia semanal tickets">.</canvas></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+/* ── DATA ── */
+const tickets = [
+  {id:'#1042',cliente:'María González',asunto:'Error al iniciar sesión',estado:'urgente',plan:'Premium',tiempo:'5m'},
+  {id:'#1041',cliente:'Rodrigo Tapia',asunto:'Factura duplicada',estado:'abierto',plan:'Pro',tiempo:'22m'},
+  {id:'#1040',cliente:'Valentina Ríos',asunto:'Cambio de plan mensual',estado:'pendiente',plan:'Basic',tiempo:'1h'},
+  {id:'#1039',cliente:'Andrés Morales',asunto:'API no responde',estado:'urgente',plan:'Premium',tiempo:'1h'},
+  {id:'#1038',cliente:'Camila Soto',asunto:'Consulta descuentos',estado:'abierto',plan:'Pro',tiempo:'2h'},
+  {id:'#1037',cliente:'Felipe Herrera',asunto:'Restablece contraseña',estado:'cerrado',plan:'Basic',tiempo:'3h'},
+  {id:'#1036',cliente:'Isidora Pinto',asunto:'Exportar CSV',estado:'pendiente',plan:'Pro',tiempo:'4h'},
+  {id:'#1035',cliente:'Tomás Vera',asunto:'Error 500',estado:'cerrado',plan:'Premium',tiempo:'5h'},
+];
+
+const flowSteps = [
+  {
+    id:'cuenta', icon:'👤', color:'background:rgba(41,212,160,.15);color:#29d4a0',
+    title:'Cuenta del cliente en la app', tag:'Origen', tagColor:'background:var(--teal-l);color:var(--teal)',
+    desc:'El cliente ya tiene sesión activa. Su perfil contiene todos los datos necesarios: no necesita llenar formularios.',
+    chips:[{t:'nombre',c:'t'},{t:'email',c:'t'},{t:'plan activo',c:'t'},{t:'historial tickets',c:'t'},{t:'preferencias',c:'t'}],
+    status:'done'
+  },
+  {
+    id:'webhook', icon:'🔗', color:'background:rgba(124,111,239,.18);color:#7c6fef',
+    title:'Webhook trigger en n8n', tag:'n8n', tagColor:'background:var(--purple-l);color:var(--purple)',
+    desc:'Al abrir un ticket la app hace un POST al webhook de n8n con el user_id y el mensaje. n8n despierta el flujo.',
+    chips:[{t:'POST /webhook/soporte',c:'p'},{t:'user_id',c:'p'},{t:'mensaje',c:'p'},{t:'canal',c:'p'}],
+    status:'active'
+  },
+  {
+    id:'perfil', icon:'🔍', color:'background:rgba(79,163,247,.15);color:#4fa3f7',
+    title:'Recuperar perfil completo', tag:'HTTP Request', tagColor:'background:var(--blue-l);color:var(--blue)',
+    desc:'n8n consulta la base de datos usando el user_id para traer nombre, email, plan, tickets anteriores y estado de cuenta.',
+    chips:[{t:'GET /users/{id}',c:'p'},{t:'Supabase',c:'p'},{t:'historial',c:'p'}],
+    status:'active'
+  },
+  {
+    id:'prompt', icon:'🧠', color:'background:rgba(245,166,35,.15);color:#f5a623',
+    title:'Construir prompt para la IA', tag:'Clave', tagColor:'background:var(--amber-l);color:var(--amber)',
+    desc:'El nodo Set arma el prompt con los datos del cliente. Esto es lo que hace que la respuesta sea personalizada.',
+    prompt:true,
+    status:'active'
+  },
+  {
+    id:'ia', icon:'⚡', color:'background:rgba(245,166,35,.15);color:#f5a623',
+    title:'IA genera respuesta personalizada', tag:'OpenAI / Claude', tagColor:'background:var(--amber-l);color:var(--amber)',
+    desc:'La IA lee el contexto completo del cliente y genera una respuesta empática, con solución concreta y confirmación de cierre.',
+    chips:[{t:'GPT-4o',c:'a'},{t:'Claude Sonnet',c:'a'},{t:'temperatura 0.3',c:'a'}],
+    status:'active'
+  },
+  {
+    id:'decision', icon:'⚖️', color:'background:rgba(240,96,96,.13);color:#f06060',
+    title:'¿Se puede cerrar automáticamente?', tag:'Nodo IF', tagColor:'background:var(--red-l);color:var(--red)',
+    desc:'n8n evalúa si la respuesta de la IA resuelve el problema o necesita intervención humana.',
+    fork:true,
+    status:'active'
+  },
+  {
+    id:'email', icon:'📧', color:'background:rgba(41,212,160,.15);color:#29d4a0',
+    title:'Enviar email al cliente', tag:'Gmail / SMTP', tagColor:'background:var(--teal-l);color:var(--teal)',
+    desc:'El email sale con el nombre real del cliente, el número de caso, la respuesta de la IA y una encuesta de satisfacción.',
+    chips:[{t:'nombre personalizado',c:'t'},{t:'caso #ID',c:'t'},{t:'respuesta IA',c:'t'},{t:'encuesta',c:'t'}],
+    simulate:true,
+    status:'active'
+  },
+  {
+    id:'cierre', icon:'✅', color:'background:rgba(41,212,160,.15);color:#29d4a0',
+    title:'Cierre del ticket en dashboard', tag:'BD + dashboard', tagColor:'background:var(--teal-l);color:var(--teal)',
+    desc:'El ticket se marca como cerrado en la base de datos. El dashboard se actualiza en tiempo real. El feedback de satisfacción mejora los próximos prompts.',
+    chips:[{t:'status → cerrado',c:'t'},{t:'timestamp',c:'t'},{t:'feedback loop IA',c:'t'}],
+    status:'active'
+  },
+];
+
+const resps = [
+  {cat:'Problemas técnicos',items:[
+    {t:'Error de acceso',txt:'Hola [nombre], lamentamos los inconvenientes. Para restablecer tu acceso haz clic en "Olvidé mi contraseña". Si persiste, escríbenos con tu correo registrado. Caso #[ID] queda registrado. ¿Puedo ayudarte con algo más?'},
+    {t:'Error 500',txt:'Hola [nombre], ya identificamos el error en nuestros servidores. El equipo técnico está trabajando en la solución — tiempo estimado 30 minutos. Te avisamos en cuanto esté resuelto. Gracias por tu paciencia.'},
+  ]},
+  {cat:'Facturación',items:[
+    {t:'Cobro duplicado',txt:'Hola [nombre], confirmamos el cobro duplicado. Ya procesamos la devolución que verás en 3 a 5 días hábiles. Caso #[ID] cerrado. Pedimos disculpas por el inconveniente.'},
+    {t:'Cambio de plan',txt:'Hola [nombre], el cambio al plan [plan] está activo desde hoy. La diferencia se ajusta en tu próxima factura. ¿Quieres que te explique los nuevos beneficios?'},
+  ]},
+  {cat:'Consultas',items:[
+    {t:'Exportación de datos',txt:'Hola [nombre], el archivo CSV ya está en camino a tu correo registrado. Llegará en menos de 15 minutos. Si no lo recibes revisa spam o escríbenos de nuevo.'},
+    {t:'Cierre satisfactorio',txt:'Hola [nombre], cerramos este caso con solución aplicada. Si necesitas algo más no dudes en contactarnos. ¡Que tengas un excelente día!'},
+  ]},
+];
+
+const autos = [
+  {ico:'⚡',c:'background:var(--purple-l);color:var(--purple)',t:'Asignación por categoría',d:'Tickets técnicos → ingeniería. Facturación → financiero.',on:true},
+  {ico:'⏱',c:'background:var(--teal-l);color:var(--teal)',t:'Escalación por tiempo',d:'Sin respuesta en 2h → supervisor + prioridad urgente.',on:true},
+  {ico:'✉️',c:'background:var(--amber-l);color:var(--amber)',t:'Confirmación automática',d:'Email de recibido al cliente con número de caso y ETA.',on:true},
+  {ico:'🤖',c:'background:var(--blue-l);color:var(--blue)',t:'Cierre automático IA',d:'Si la IA resuelve → cierra ticket + envía encuesta.',on:true},
+  {ico:'🏷',c:'background:var(--purple-l);color:var(--purple)',t:'Etiquetado IA',d:'Detecta palabras clave y clasifica categoría al instante.',on:true},
+  {ico:'📊',c:'background:var(--teal-l);color:var(--teal)',t:'Reporte diario',d:'Métricas del día al equipo cada mañana a las 9am.',on:false},
+];
+
+const equipo = [
+  {n:'Ana Morales',v:47,bg:'background:var(--purple-l);color:var(--purple)',bar:'#7c6fef'},
+  {n:'Luis Fuentes',v:38,bg:'background:var(--teal-l);color:var(--teal)',bar:'#29d4a0'},
+  {n:'Sofia Reyes',v:35,bg:'background:var(--blue-l);color:var(--blue)',bar:'#4fa3f7'},
+  {n:'Diego Castro',v:29,bg:'background:var(--amber-l);color:var(--amber)',bar:'#f5a623'},
+  {n:'Pía Vargas',v:21,bg:'background:var(--red-l);color:var(--red)',bar:'#f06060'},
+];
+
+/* ── TABS ── */
+let activeTab='tickets';
+const topBtns = document.querySelectorAll('.topbar-btn');
+function switchTab(id, btn, navBtn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  topBtns.forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(navBtn) navBtn.classList.add('active');
+  activeTab=id;
+  if(id==='rendimiento') setTimeout(renderCharts,80);
+}
+
+/* ── TICKETS ── */
+let curF='todos', togStates={};
+function ft(f,btn){
+  curF=f;
+  document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTickets();
+}
+function renderTickets(){
+  const list=curF==='todos'?tickets:tickets.filter(t=>t.estado===curF);
+  document.getElementById('tcnt').textContent=list.length+' tickets';
+  document.getElementById('tbody').innerHTML=list.map(t=>`
+    <tr onclick="openTicket('${t.id}')">
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">${t.id}</td>
+      <td style="font-weight:600">${t.cliente}</td>
+      <td style="color:var(--muted)">${t.asunto}</td>
+      <td><span class="badge b${t.estado[0]}">${t.estado}</span></td>
+      <td><span style="font-size:11px;color:var(--muted)">${t.plan}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">${t.tiempo}</td>
+      <td><button class="act-btn" onclick="event.stopPropagation();verFlujo('${t.id}')">Ver flujo</button></td>
+    </tr>`).join('');
+}
+function openTicket(id){
+  const t=tickets.find(x=>x.id===id);
+  alert('Ticket '+t.id+': '+t.asunto+'\nCliente: '+t.cliente+' ('+t.plan+')\n\nEn producción: aquí se abriría el detalle con el historial y respuesta generada por IA.');
+}
+function verFlujo(id){
+  switchTab('flujo');
+  document.querySelectorAll('.topbar-btn')[1].classList.add('active');
+  document.querySelectorAll('.topbar-btn')[0].classList.remove('active');
+  setTimeout(()=>{ const fb=document.querySelector('.flow-box'); if(fb) fb.click(); },200);
+}
+
+/* ── FLUJO N8N ── */
+function renderFlujo(){
+  const wrap=document.getElementById('flow-wrap');
+  wrap.innerHTML=flowSteps.map((s,i)=>`
+    <div class="flow-node">
+      <div class="flow-col">
+        <div class="flow-dot ${s.status==='done'?'done-dot':'active-dot'}"></div>
+        ${i<flowSteps.length-1?'<div class="flow-line"></div>':''}
+      </div>
+      <div class="flow-content">
+        <div class="flow-box" id="fb-${s.id}" onclick="toggleFlow('${s.id}')">
+          <div class="flow-head">
+            <div class="flow-icon" style="${s.color}">${s.icon}</div>
+            <span class="flow-title">${s.title}</span>
+            <span class="flow-tag" style="${s.tagColor}">${s.tag}</span>
+          </div>
+          <div class="flow-body" id="fd-${s.id}">
+            <p class="flow-detail">${s.desc}</p>
+            ${s.prompt?`
+            <div class="prompt-block">
+              <div class="prompt-line"><span class="pl-key">sistema:</span><span class="pl-val">"Eres agente de soporte. Responde con empatía y cierra el ticket."</span></div>
+              <div class="prompt-line"><span class="pl-key">cliente:</span><span class="pl-val">nombre: <span>{{nombre}}</span> · plan: <span>{{plan}}</span></span></div>
+              <div class="prompt-line"><span class="pl-key">historial:</span><span class="pl-val"><span>{{tickets_anteriores}}</span> tickets previos</span></div>
+              <div class="prompt-line"><span class="pl-key">problema:</span><span class="pl-val"><span>{{mensaje_ticket}}</span></span></div>
+              <div class="prompt-line"><span class="pl-key">tarea:</span><span class="pl-val">Propón solución. Si resuelves → confirma cierre. Si no → escala.</span></div>
+            </div>`:''}
+            ${s.chips?`<div class="flow-chips">${s.chips.map(c=>`<span class="chip ${c.c}">${c.t}</span>`).join('')}</div>`:''}
+            ${s.fork?`
+            <div class="fork">
+              <div class="fork-box" style="border-color:var(--teal)">
+                <div class="fork-label" style="color:var(--teal)">✓ Sí — cierre auto</div>
+                <div class="fork-desc">Categoría resuelta por IA → status "cerrado" en BD → email de confirmación</div>
+              </div>
+              <div class="fork-box" style="border-color:var(--coral)">
+                <div class="fork-label" style="color:var(--coral)">→ No — agente humano</div>
+                <div class="fork-desc">Problema complejo → alerta Slack al agente → ticket permanece abierto</div>
+              </div>
+            </div>`:''}
+            ${s.simulate?`
+            <button class="sim-btn" onclick="simEmail(event)">▶ Simular: enviar email al cliente</button>
+            <div class="sim-panel" id="sim-panel">
+              <div class="sim-step" id="ss1"><div class="sim-check">✓</div><span>Datos del cliente recuperados — María González · Premium</span></div>
+              <div class="sim-step" id="ss2"><div class="sim-check">✓</div><span>Prompt construido con historial: 3 tickets anteriores</span></div>
+              <div class="sim-step" id="ss3"><div class="sim-check">✓</div><span>IA generó respuesta personalizada (0.8s)</span></div>
+              <div class="sim-step" id="ss4"><div class="sim-check">✓</div><span>Decisión: categoría resuelta → cierre automático</span></div>
+              <div class="sim-step" id="ss5"><div class="sim-check">✓</div><span>Email enviado a m.gonzalez@email.com</span></div>
+              <div class="sim-email" id="sim-email">
+                <div class="sim-email-head">
+                  <div>Para: m.gonzalez@email.com</div>
+                  <div>Asunto: Caso #1042 resuelto — Error de acceso</div>
+                </div>
+                <div class="sim-email-body">
+                  Hola María, gracias por contactarnos.<br><br>
+                  Revisamos tu caso y encontramos que la sesión expiró por inactividad en tu plan Premium. Para restablecer el acceso haz clic en "Olvidé mi contraseña" en la pantalla de inicio — el proceso toma menos de 2 minutos.<br><br>
+                  Como cliente Premium tienes acceso prioritario 24/7. Si el problema persiste en los próximos 30 minutos, responde este email y un agente te atenderá de inmediato.<br><br>
+                  Caso #1042 — resuelto ✓<br>
+                  <span style="color:var(--muted);font-size:11px">¿Esta respuesta te fue útil? <span style="color:var(--purple);cursor:pointer">Sí</span> · <span style="color:var(--purple);cursor:pointer">No</span></span>
+                </div>
+              </div>
+            </div>`:''}
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleFlow(id){
+  const box=document.getElementById('fb-'+id);
+  const body=document.getElementById('fd-'+id);
+  const isOpen=body.classList.contains('open');
+  document.querySelectorAll('.flow-body').forEach(b=>b.classList.remove('open'));
+  document.querySelectorAll('.flow-box').forEach(b=>b.classList.remove('open'));
+  if(!isOpen){ body.classList.add('open'); box.classList.add('open'); }
+}
+
+function simEmail(e){
+  e.stopPropagation();
+  const panel=document.getElementById('sim-panel');
+  panel.classList.add('open');
+  const steps=['ss1','ss2','ss3','ss4','ss5'];
+  steps.forEach((id,i)=>setTimeout(()=>{
+    document.getElementById(id).classList.add('show');
+    if(i===steps.length-1) setTimeout(()=>document.getElementById('sim-email').classList.add('open'),300);
+  },i*500));
+}
+
+/* ── RESPUESTAS ── */
+function renderResps(){
+  const el=document.getElementById('resp-list');
+  el.innerHTML=resps.map((cat,ci)=>`
+    <div class="rcat">${cat.cat}</div>
+    ${cat.items.map((item,ii)=>`
+      <div class="ri" onclick="toggleR(${ci},${ii})">
+        <div class="rh"><span class="rt">${item.t}</span><span style="color:var(--muted);font-size:14px" id="ra-${ci}-${ii}">▾</span></div>
+        <div class="rb" id="re-${ci}-${ii}">
+          <p>${item.txt}</p>
+          <button class="cpbtn" onclick="event.stopPropagation();cp(${ci},${ii},this)">⎘ Copiar</button>
+        </div>
+      </div>`).join('')}`).join('');
+}
+function toggleR(ci,ii){
+  const el=document.getElementById('re-'+ci+'-'+ii);
+  const ar=document.getElementById('ra-'+ci+'-'+ii);
+  const o=el.classList.toggle('open');
+  ar.textContent=o?'▴':'▾';
+}
+function cp(ci,ii,btn){
+  navigator.clipboard&&navigator.clipboard.writeText(resps[ci].items[ii].txt);
+  btn.textContent='✓ Copiado';
+  setTimeout(()=>{btn.textContent='⎘ Copiar'},1600);
+}
+
+/* ── AUTOMATIZACIONES ── */
+function renderAutos(){
+  const el=document.getElementById('auto-list');
+  el.innerHTML=autos.map((a,i)=>{
+    const on=togStates[i]!==undefined?togStates[i]:a.on;
+    return`<div class="ai">
+      <div class="aico" style="${a.c}">${a.ico}</div>
+      <div style="flex:1"><div class="at">${a.t}</div><div class="ad">${a.d}</div></div>
+      <button class="tog ${on?'on':'off'}" onclick="toggleA(${i})" aria-label="activar"></button>
+    </div>`;
+  }).join('');
+}
+function toggleA(i){
+  togStates[i]=togStates[i]!==undefined?!togStates[i]:!autos[i].on;
+  renderAutos();
+}
+
+/* ── RENDIMIENTO ── */
+function renderPerf(){
+  const max=Math.max(...equipo.map(e=>e.v));
+  document.getElementById('perf-list').innerHTML=equipo.map((e,i)=>`
+    <div class="pr">
+      <span style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;width:16px">${i+1}</span>
+      <div class="pa" style="${e.bg}">${e.n.split(' ').map(x=>x[0]).join('')}</div>
+      <div class="pname">${e.n}</div>
+      <div class="pbw"><div class="pb" style="width:${Math.round(e.v/max*100)}%;background:${e.bar}"></div></div>
+      <div class="pv">${e.v}</div>
+    </div>`).join('');
+}
+
+let chartsOk=false;
+function renderCharts(){
+  if(chartsOk) return; chartsOk=true;
+  new Chart(document.getElementById('trendChart'),{
+    type:'line',
+    data:{
+      labels:['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'],
+      datasets:[
+        {label:'Abiertos',data:[45,62,58,71,55,38,42],borderColor:'#7c6fef',backgroundColor:'rgba(124,111,239,.07)',tension:.4,fill:true,pointRadius:3,pointBackgroundColor:'#7c6fef'},
+        {label:'Resueltos',data:[38,55,61,59,62,40,38],borderColor:'#29d4a0',backgroundColor:'rgba(41,212,160,.07)',tension:.4,fill:true,pointRadius:3,pointBackgroundColor:'#29d4a0'},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,ticks:{color:'#5a6278',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
+              x:{ticks:{color:'#5a6278',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}
+  });
+}
+
+/* ── INIT ── */
+renderTickets();
+renderFlujo();
+renderResps();
+renderAutos();
+renderPerf();
+</script>
+</body>
+</html>
